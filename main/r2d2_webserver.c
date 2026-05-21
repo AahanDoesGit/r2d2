@@ -275,12 +275,8 @@ static const char *dashboard_html =
 "                    </div>\n"
 "                    \n"
 "                    <p style=\"color: #ccb918; font-size: 0.85rem; margin-bottom: 12px; line-height: 1.5;\">\n"
-"                        UPLOAD NEW GIF OR SELECT FROM PALETTE BELOW TO PROJECT ONTO LCD.\n"
+"                        SELECT FROM PALETTE BELOW TO PROJECT ONTO LCD.\n"
 "                    </p>\n"
-"                    <div class=\"input-group\" style=\"margin-top: 0;\">\n"
-"                        <input type=\"file\" id=\"gif-upload\" accept=\"image/gif\" style=\"flex-grow:1; color: var(--primary); font-family: Orbitron, sans-serif; font-size: 0.85rem;\">\n"
-"                        <button id=\"gif-btn\" class=\"btn\" style=\"padding: 8px 16px; font-size: 0.85rem; width: auto !important; margin-top: 0 !important;\" disabled>Upload GIF</button>\n"
-"                    </div>\n"
 "                    <div id=\"gif-preview\" style=\"margin-top:12px; text-align:center;\"></div>\n"
 "                    <div id=\"gif-list-container\"></div>\n"
 "                </div>\n"
@@ -326,12 +322,12 @@ static const char *dashboard_html =
 "\n"
 "        // Dynamic Display updates & controls\n"
 "        const updateStatus = () => {\n"
-"            fetch('/api/mode')\n"
-"                .then(res => res.text())\n"
-"                .then(mode => {\n"
-"                    document.getElementById('current-screen-mode').innerText = mode === 'DISPLAY' ? 'DISPLAY MODE' : 'AUDIO / IDLE';\n"
+"            fetch('/api/status')\n"
+"                .then(res => res.json())\n"
+"                .then(data => {\n"
+"                    document.getElementById('current-screen-mode').innerText = data.mode === 'DISPLAY' ? 'DISPLAY MODE' : 'AUDIO / IDLE';\n"
 "                    const badge = document.getElementById('screen-status-badge');\n"
-"                    if (mode === 'DISPLAY') {\n"
+"                    if (data.mode === 'DISPLAY') {\n"
 "                        badge.innerText = 'ACTIVE';\n"
 "                        badge.style.borderColor = 'var(--primary)';\n"
 "                        badge.style.color = 'var(--primary)';\n"
@@ -342,24 +338,16 @@ static const char *dashboard_html =
 "                        badge.style.color = 'var(--accent)';\n"
 "                        badge.style.boxShadow = '0 0 10px rgba(255, 51, 51, 0.4)';\n"
 "                    }\n"
-"                }).catch(err => console.error('Error fetching mode:', err));\n"
-"\n"
-"            fetch('/api/quote')\n"
-"                .then(res => res.text())\n"
-"                .then(quote => {\n"
-"                    document.getElementById('current-quote').innerText = quote;\n"
-"                }).catch(err => console.error('Error fetching quote:', err));\n"
-"\n"
-"            fetch('/api/time')\n"
-"                .then(res => res.text())\n"
-"                .then(time => {\n"
-"                    document.getElementById('galactic-clock').innerText = 'GST: ' + time;\n"
-"                    document.getElementById('system-time-val').innerText = time;\n"
-"                }).catch(err => console.error('Error fetching time:', err));\n"
+"                    if (document.getElementById('current-quote')) {\n"
+"                        document.getElementById('current-quote').innerText = data.quote;\n"
+"                    }\n"
+"                    document.getElementById('galactic-clock').innerText = 'GST: ' + data.time;\n"
+"                    document.getElementById('system-time-val').innerText = data.time;\n"
+"                }).catch(err => console.error('Error fetching status:', err));\n"
 "        };\n"
 "\n"
-"        // Poll status every 3 seconds\n"
-"        setInterval(updateStatus, 3000);\n"
+"        // Poll status every 5 seconds to reduce Wi-Fi overhead\n"
+"        setInterval(updateStatus, 5000);\n"
 "        updateStatus();\n"
 "\n"
 "        // Toggle Screen Mode click handler\n"
@@ -381,9 +369,7 @@ static const char *dashboard_html =
 "                });\n"
 "        });\n"
 "\n"
-"        // GIF Upload handler\n"
-"        const gifUpload = document.getElementById('gif-upload');\n"
-"        const gifBtn = document.getElementById('gif-btn');\n"
+"        // GIF Selection handler\n"
 "        const gifPreview = document.getElementById('gif-preview');\n"
 "        const gifListDiv = document.createElement('div');\n"
 "        gifListDiv.id = 'gif-list';\n"
@@ -463,33 +449,6 @@ static const char *dashboard_html =
 "                });\n"
 "        };\n"
 "\n"
-"        gifUpload.addEventListener('change', () => {\n"
-"            gifBtn.disabled = !gifUpload.files.length;\n"
-"        });\n"
-"        gifBtn.addEventListener('click', () => {\n"
-"            const file = gifUpload.files[0];\n"
-"            if (!file) return;\n"
-"            gifBtn.disabled = true;\n"
-"            gifBtn.innerText = 'UPLOADING...';\n"
-"            const reader = new FileReader();\n"
-"            reader.onload = () => {\n"
-"                fetch('/api/gif?name=' + encodeURIComponent(file.name), {\n"
-"                    method: 'POST',\n"
-"                    headers: { 'Content-Type': 'application/octet-stream' },\n"
-"                    body: reader.result\n"
-"                }).then(res => {\n"
-"                    if (res.ok) {\n"
-"                        loadGifList();\n"
-"                        gifPreview.innerHTML = `<img src=\"${URL.createObjectURL(file)}\" style=\"max-width:180px;max-height:180px;object-fit:contain;border:1px solid var(--primary);border-radius:6px;\"/>`;\n"
-"                    }\n"
-"                }).catch(err => console.error('GIF upload error:', err))\n"
-"                .finally(() => {\n"
-"                    gifBtn.disabled = false;\n"
-"                    gifBtn.innerText = 'Upload GIF';\n"
-"                });\n"
-"            };\n"
-"            reader.readAsArrayBuffer(file);\n"
-"        });\n"
 "        loadGifList();\n"
 "    </script>\n"
 "</body>\n"
@@ -546,9 +505,15 @@ static esp_err_t speak_post_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
-/* HTTP GET handler for fetching current system time */
-static esp_err_t time_get_handler(httpd_req_t *req)
+/* HTTP GET handler for unified system status */
+static esp_err_t status_get_handler(httpd_req_t *req)
 {
+    r2d2_mode_t mode = r2d2_get_mode();
+    const char *mode_str = (mode == MODE_DISPLAY) ? "DISPLAY" : "AUDIO_IDLE";
+
+    char quote_buf[128];
+    r2d2_display_get_quote(quote_buf, sizeof(quote_buf));
+
     time_t now;
     struct tm timeinfo;
     time(&now);
@@ -564,19 +529,15 @@ static esp_err_t time_get_handler(httpd_req_t *req)
         strftime(formatted_time, sizeof(formatted_time), "%H:%M:%S", &timeinfo);
         snprintf(time_str, sizeof(time_str), "%s (IST)", formatted_time);
     }
-    
-    httpd_resp_set_type(req, "text/plain");
-    httpd_resp_sendstr(req, time_str);
-    return ESP_OK;
-}
 
-/* HTTP GET handler for mode request */
-static esp_err_t mode_get_handler(httpd_req_t *req)
-{
-    r2d2_mode_t mode = r2d2_get_mode();
-    const char *mode_str = (mode == MODE_DISPLAY) ? "DISPLAY" : "AUDIO_IDLE";
-    httpd_resp_set_type(req, "text/plain");
-    httpd_resp_sendstr(req, mode_str);
+    // Escape quotes in the quote buffer to form valid JSON
+    char json_resp[512];
+    snprintf(json_resp, sizeof(json_resp), 
+             "{\"mode\":\"%s\", \"quote\":\"%s\", \"time\":\"%s\"}", 
+             mode_str, quote_buf, time_str);
+
+    httpd_resp_set_type(req, "application/json");
+    httpd_resp_sendstr(req, json_resp);
     return ESP_OK;
 }
 
@@ -627,15 +588,7 @@ static esp_err_t mode_post_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
-/* HTTP GET handler for fetching active quote */
-static esp_err_t quote_get_handler(httpd_req_t *req)
-{
-    char buf[128];
-    r2d2_display_get_quote(buf, sizeof(buf));
-    httpd_resp_set_type(req, "text/plain");
-    httpd_resp_sendstr(req, buf);
-    return ESP_OK;
-}
+
 
 /* HTTP POST handler for projecting a custom quote */
 static esp_err_t quote_post_handler(httpd_req_t *req)
@@ -801,77 +754,6 @@ static esp_err_t gif_list_handler(httpd_req_t *req)
 
 static void urldecode(char *dst, const char *src);
 
-static esp_err_t gif_post_handler(httpd_req_t *req)
-{
-    int remaining = req->content_len;
-    if (remaining <= 0) {
-        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "No content");
-        return ESP_FAIL;
-    }
-
-    // Ensure SD card directory exists
-    const char *dir_path = "/sdcard/gifs";
-    struct stat st = {0};
-    if (stat(dir_path, &st) == -1) {
-        mkdir(dir_path, 0777);
-    }
-
-    // Use original filename from query param, fallback to "upload.gif"
-    char query[128];
-    char upload_name[64] = "upload.gif";
-    if (httpd_req_get_url_query_str(req, query, sizeof(query)) == ESP_OK) {
-        const char *key = "name=";
-        char *p = strstr(query, key);
-        if (p) {
-            p += strlen(key);
-            char encoded_name[64];
-            size_t i = 0;
-            while (*p && *p != '&' && i < sizeof(encoded_name) - 1) {
-                encoded_name[i++] = *p++;
-            }
-            encoded_name[i] = '\0';
-            urldecode(upload_name, encoded_name);
-        }
-    }
-    char file_path[128];
-    snprintf(file_path, sizeof(file_path), "/sdcard/gifs/%s", upload_name);
-
-    FILE *f = fopen(file_path, "wb");
-    if (!f) {
-        ESP_LOGE(TAG, "Failed to open %s for writing", file_path);
-        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "File write error");
-        return ESP_FAIL;
-    }
-
-    // Stream the data in 4KB chunks directly to file
-    char *buf = malloc(4096);
-    if (!buf) {
-        fclose(f);
-        return ESP_FAIL;
-    }
-    int total_received = 0;
-    while (remaining > 0) {
-        int to_recv = remaining < 4096 ? remaining : 4096;
-        int ret = httpd_req_recv(req, buf, to_recv);
-        if (ret <= 0) {
-            if (ret == HTTPD_SOCK_ERR_TIMEOUT) continue;
-            fclose(f);
-            free(buf);
-            unlink(file_path); // delete incomplete file
-            ESP_LOGE(TAG, "Upload failed during recv");
-            return ESP_FAIL;
-        }
-        fwrite(buf, 1, ret, f);
-        total_received += ret;
-        remaining -= ret;
-    }
-    fclose(f);
-    free(buf);
-
-    ESP_LOGI(TAG, "GIF upload saved (%d bytes) to %s", total_received, file_path);
-    httpd_resp_sendstr(req, "OK");
-    return ESP_OK;
-}
 
 // Utility function for URL decoding
 static void urldecode(char *dst, const char *src)
@@ -964,13 +846,13 @@ void r2d2_webserver_start(void)
         };
         httpd_register_uri_handler(server, &uri_speak);
 
-        httpd_uri_t uri_mode_get = {
-            .uri      = "/api/mode",
+        httpd_uri_t uri_status = {
+            .uri      = "/api/status",
             .method   = HTTP_GET,
-            .handler  = mode_get_handler,
+            .handler  = status_get_handler,
             .user_ctx = NULL
         };
-        httpd_register_uri_handler(server, &uri_mode_get);
+        httpd_register_uri_handler(server, &uri_status);
 
         httpd_uri_t uri_mode_post = {
             .uri      = "/api/mode",
@@ -979,14 +861,6 @@ void r2d2_webserver_start(void)
             .user_ctx = NULL
         };
         httpd_register_uri_handler(server, &uri_mode_post);
-
-        httpd_uri_t uri_quote_get = {
-            .uri      = "/api/quote",
-            .method   = HTTP_GET,
-            .handler  = quote_get_handler,
-            .user_ctx = NULL
-        };
-        httpd_register_uri_handler(server, &uri_quote_get);
 
         httpd_uri_t uri_quote_post = {
             .uri      = "/api/quote",
@@ -1012,13 +886,7 @@ void r2d2_webserver_start(void)
             .user_ctx = NULL
         };
         httpd_register_uri_handler(server, &uri_gif_list);
-        httpd_uri_t uri_gif_post = {
-            .uri      = "/api/gif",
-            .method   = HTTP_POST,
-            .handler  = gif_post_handler,
-            .user_ctx = NULL
-        };
-        httpd_register_uri_handler(server, &uri_gif_post);
+
 
         httpd_uri_t uri_gif_play = {
             .uri      = "/api/gif/play",
@@ -1028,13 +896,6 @@ void r2d2_webserver_start(void)
         };
         httpd_register_uri_handler(server, &uri_gif_play);
 
-        httpd_uri_t uri_time_get = {
-            .uri      = "/api/time",
-            .method   = HTTP_GET,
-            .handler  = time_get_handler,
-            .user_ctx = NULL
-        };
-        httpd_register_uri_handler(server, &uri_time_get);
     } else {
         ESP_LOGI(TAG, "Error starting server!");
     }
