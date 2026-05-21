@@ -1,7 +1,5 @@
 # R2-D2 ESP32-P4 Astromech System
 
-![R2-D2 Interface](sd_card/images/R2-D2.jpg)
-
 A complete hardware and firmware ecosystem for building a smart R2-D2 droid, powered by the ESP32-P4 with a 4.3" touch display, audio synthesis, and a full-stack web dashboard.
 
 ## Overview
