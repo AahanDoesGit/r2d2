@@ -1,0 +1,15 @@
+{
+  "idf.currentSetup": "/Users/mac/.espressif/v5.4.4/esp-idf",
+  "idf.customExtraVars": {},
+  "clangd.path": "/Users/mac/.espressif/tools/esp-clang/esp-20.1.1_20250829/esp-clang/bin/clangd",
+  "clangd.arguments": [
+    "--background-index",
+    "--query-driver=**",
+    "--compile-commands-dir=/Users/mac/Documents/r2d2-system/build"
+  ],
+  "idf.port": "/dev/tty.usbmodem5B5E0698681",
+  "idf.openOcdConfigs": [
+    "board/esp32p4-ftdi.cfg"
+  ],
+  "idf.flashType": "UART"
+}

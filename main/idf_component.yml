@@ -1,0 +1,15 @@
+## IDF Component Manager Manifest File
+dependencies:
+  idf:
+    version: '>=5.3.0'
+
+
+  # LVGL 9 (matches Waveshare's example — BSP color_format config requires LVGL 9)
+  lvgl/lvgl: "9.4.*"
+
+  espressif/esp_codec_dev: '*'
+
+  # Wi-Fi support via ESP32-C6
+  espressif/esp_wifi_remote: "0.14.*"
+  espressif/esp_hosted: "1.4.*"
+
