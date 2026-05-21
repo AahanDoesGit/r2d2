@@ -104,6 +104,9 @@ void r2d2_wifi_init(void) {
   ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
   ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
   ESP_ERROR_CHECK(esp_wifi_start());
+  
+  // Disable Wi-Fi power save to eliminate HTTP latency and make dashboard instantly responsive
+  ESP_ERROR_CHECK(esp_wifi_set_ps(WIFI_PS_NONE));
 
   ESP_LOGI(TAG, "Wi-Fi initialization finished. Waiting for connection...");
 
